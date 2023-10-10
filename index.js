@@ -41,7 +41,7 @@ app.use(session({
 // Listen to port 3000 by default
 const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
-    console.log('Server berjalan di port ${port})';
+    console.log('Server berjalan di port ${port}');
 });
 
 // import routes
