@@ -1,71 +1,71 @@
-const express = require("express");
-const mysql = require("mysql");
-const dotenv = require("dotenv");
-const cors = require('cors');
-const session = require("express-session");
-const { fileURLToPath } = require('url');
-const path = require("path");
-const pagesRouter = require('./routes/pages.js');
-const apiRouter = require('./routes/api.js');
-const authRouter = require('./routes/auth.js');
-const shipRouter = require('./routes/ship');
-
-
-
-
+// Import expressjs
+const express = require('express');
 const app = express();
-dotenv.config({ path: './.env' });
-// Set mesin template EJS
-app.set('view engine', 'ejs');
 
+// Import body-parser
+const bodyParser = require('body-parser');
+app.use(bodyParser.json());
 
+// Import cors
+const cors = require('cors');
+app.use(cors({credentials: true, origin: true}));
 
-// Middleware untuk memeriksa status login pengguna
-function checkAuthentication(req, res, next) {
-    if (req.session && req.session.user) {
-        // Pengguna sudah masuk, lanjutkan permintaan
-        return next();
-    } else {
-        // Pengguna belum masuk, arahkan ke halaman login
-        res.redirect('/login.html');
-    }
-}
+// Import dotenv
+const dotenv = require('dotenv');
+dotenv.config();
 
-const mysqlConnection = mysql.createConnection({
+// import session
+const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
+
+// session store
+const sessionStore = new MySQLStore({
     host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT,
     user: process.env.MYSQLUSER,
     password: process.env.MYSQLPASSWORD,
-    database: process.env.DATABASE,
-    port: process.env.PORT,
+    database: process.env.MYSQLDATABASE,
+    clearExpired: true,
+    checkExpirationInterval: 900000, // Interval pengecekan kedaluwarsa sesi dalam milidetik
 });
 
-console.log(__dirname);
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-
-// Menggunakan middleware
-app.use(cors());
-app.use(express.json());
-
+// use session
 app.use(session({
-    secret: 'your-secret-key', // Change this to a strong, random value
+    secret: process.env.SECRETKEY,
+    store: sessionStore,
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 900000, // Maksimal umur cookie dalam milidetik
+    },
 }));
 
-mysqlConnection.connect((error) => {
-    if (error) {
-        console.log(error);
-    } else {
-        console.log("MYSQL Connected...");
-    }
+// Listen to port 3000 by default
+const port = process.env.PORT || 3000;
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Server berjalan di port ${port}`);
 });
 
-app.use('/', pagesRouter);
-app.use('/api', apiRouter);
-app.use('/auth', authRouter);
-app.use('/ship', shipRouter);
+// import routes
+const shipmentsRoutes = require('./routes/shipments.routes');
+const usersRoutes = require('./routes/users.routes');
+const apiRoutes = require('./routes/api.routes');
 
-app.listen(5000, () => {
-    console.log('Server up and running...');
+// define routes
+app.use('/shipments', shipmentsRoutes);
+app.use('/users', usersRoutes);
+app.use('/api', apiRoutes);
+
+// handle non-existing routes
+app.use((req, res, next) => {
+    const error = new Error('Route not found');
+    error.status = 404;
+    next(error);
+});
+
+// handle errors
+app.use((error, req, res, next) => {
+    res.status(error.status || 500).json({
+        message: error.message,
+    });
 });
