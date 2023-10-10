@@ -16,34 +16,32 @@ dotenv.config();
 
 // import session
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
+const { CyclicSessionStore } = require("@cyclic.sh/session-store");
 
 // session store
-const sessionStore = new MySQLStore({
-    host: process.env.MYSQLHOST,
-    port: process.env.MYSQLPORT,
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQLDATABASE,
-    clearExpired: true,
-    checkExpirationInterval: 900000, // Interval pengecekan kedaluwarsa sesi dalam milidetik
-});
-
-// use session
+const options = {
+    table: {
+      name: process.env.CYCLIC_DB,
+    },
+    keepExpired: false, 
+    touchInterval: 30000, // milliseconds (30 seconds)
+    ttl: 86400000 // milliseconds (1 day)
+};
+  
 app.use(session({
     secret: process.env.SECRETKEY,
-    store: sessionStore,
+    store: new CyclicSessionStore(options),
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
-        maxAge: 900000, // Maksimal umur cookie dalam milidetik
+        maxAge: 86400000, // milliseconds (1 day)
     },
 }));
 
 // Listen to port 3000 by default
 const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
-    console.log(`Server berjalan di port ${port}`);
+    console.log('Server berjalan di port ${port})';
 });
 
 // import routes
